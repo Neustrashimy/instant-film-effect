@@ -2,6 +2,16 @@ import argparse
 from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFilter, ImageChops
 import numpy as np
 
+verbose_output = False  # 実行ログを表示するかどうか
+CONST_LEAK_STYLE = { # 光漏れのスタイル定義
+    "warm": (255, 180, 100),
+    "cool": (100, 180, 255),
+    "pink": (255, 150, 200),
+    "burn": (255, 60, 60),
+    "none": None,
+    "auto": "auto",
+}
+
 
 def create_instax_frame(image, scale=10):
     """
@@ -26,8 +36,7 @@ def create_instax_frame(image, scale=10):
 
     # --- 画像の縦横比取得 ---
     img_width, img_height = image.size
-    if verbose_output:
-        print(f"create_instax_frame: 元画像サイズ: {img_width}x{img_height}px")
+    vlog(f"create_instax_frame: 元画像サイズ: {img_width}x{img_height}px")
 
     # --- 画像の中央クロップ ---
     # 目標のアスペクト比
@@ -48,8 +57,7 @@ def create_instax_frame(image, scale=10):
     top = (img_height - new_height) // 2
     right = left + new_width
     bottom = top + new_height
-    if verbose_output:
-        print(f"create_instax_frame: クロップ: {(left, top, right, bottom)}")
+    vlog(f"create_instax_frame: クロップ: {(left, top, right, bottom)}")
 
     cropped_img = image.crop((left, top, right, bottom))
 
@@ -82,22 +90,19 @@ def estimate_leak_intensity(image):
     brightness = np.mean(np_image, axis=2)
     avg_brightness = np.mean(brightness)
 
-    if verbose_output:
-        print(f"estimate_leak_intensity: 画像の平均輝度: {avg_brightness:.2f}")
+    vlog(f"estimate_leak_intensity: 画像の平均輝度: {avg_brightness:.2f}")
 
-    # 明るさに応じて intensity を調整（必要ならカスタム可能）
+    # 明るさに応じて intensity を調整
     if avg_brightness < 100:
-        if verbose_output:
-            print("estimate_leak_intensity: 判定：暗い")
-        return 0.6  # 暗い
+        vlog("estimate_leak_intensity: 判定：暗い")
+        return 0.7  # 暗い
     elif avg_brightness < 180:
-        if verbose_output:
-            print("estimate_leak_intensity: 判定：中間")
+        vlog("estimate_leak_intensity: 判定：中間")
         return 0.5  # 中間
     else:
-        if verbose_output:
-            print("estimate_leak_intensity: 判定：明るい")
+        vlog("estimate_leak_intensity: 判定：明るい")
         return 0.3  # 明るい
+
 
 def estimate_leak_light_color(image, brightness_threshold=200):
     """
@@ -123,9 +128,9 @@ def estimate_leak_light_color(image, brightness_threshold=200):
 
     # 明るいピクセルの平均色を計算
     avg_color = np.mean(bright_pixels, axis=0).astype(int)
-    if verbose_output:
-        print(f"estimate_leak_light_color: 光源色推定: {avg_color}")
+    vlog(f"estimate_leak_light_color: 光源色推定: {avg_color}")
     return tuple(avg_color)
+
 
 def add_light_leak_effect(
     image, leak_color=(255, 200, 0), intensity=0.5, leak_position="upper_right"
@@ -140,8 +145,9 @@ def add_light_leak_effect(
     :return: 光漏れ効果を適用したImageオブジェクト
     """
     width, height = image.size
-    if verbose_output:
-        print(f"add_light_leak_effect: 光漏れを追加します。強度: {intensity}, 位置: {leak_position}, 色: {leak_color}")
+    vlog(
+            f"add_light_leak_effect: 光漏れを追加します。強度: {intensity}, 位置: {leak_position}, 色: {leak_color}"
+        )
 
     # --- 光漏れ用のレイヤー作成 ---
     # 元サイズと同じ黒背景のキャンバス
@@ -185,8 +191,7 @@ def add_vignette_effect(image, strength=0.3):
     :return: 減光処理を加えたImage
     """
 
-    if verbose_output:
-        print(f"add_vignette_effect: 周辺減光の追加を行います。強度：{strength}")
+    vlog(f"add_vignette_effect: 周辺減光の追加を行います。強度：{strength}")
 
     image = image.convert("RGB")
     width, height = image.size
@@ -208,9 +213,8 @@ def add_vignette_effect(image, strength=0.3):
     return Image.fromarray(np_image)
 
 
-def add_outer_border(image, border_size=1, color=(192,192,192)):
-    if verbose_output:
-        print(f"add_outer_border: 外枠をつけます: Color {color} {border_size}px")
+def add_outer_border(image, border_size=1, color=(192, 192, 192)):
+    vlog(f"add_outer_border: 外枠をつけます: Color {color} {border_size}px")
     return ImageOps.expand(image, border=border_size, fill=color)
 
 
@@ -224,7 +228,7 @@ def parse_argument():
     parser.add_argument(
         "--leak-style",
         "--ls",
-        choices=const_leak_style.keys(),
+        choices=CONST_LEAK_STYLE.keys(),
         default="warm",
         help="光漏れの色味プリセットを選択します。デフォルトは warm です。",
     )
@@ -242,7 +246,7 @@ def parse_argument():
         help="光漏れの強度を指定します。範囲は 0.0 から 1.0 もしくは auto で、デフォルトは 0.5 です。",
     )
     parser.add_argument(
-        "--vinette-strength",
+        "--vignette-strength",
         "--vs",
         type=float,
         default=0.0,
@@ -260,23 +264,19 @@ def parse_argument():
     )
     return parser.parse_args()
 
+# 冗長ログ表示
+def vlog(message):
+    if verbose_output:
+        print(message)
+    return
+
+
 def main():
     """
     コマンドライン引数から入力ファイルと出力ファイルのパスを受け取り、
     instax mini風の余白枠と光漏れ効果を適用した画像を生成する。
     """
     global verbose_output
-    global const_leak_style
-
-    # 光漏れのスタイル定義
-    const_leak_style = {
-        "warm": (255, 180, 100),
-        "cool": (100, 180, 255),
-        "pink": (255, 150, 200),
-        "burn": (255, 60, 60),
-        "none": None,
-        "auto": "auto",
-    }
 
     # 引数のパース
     args = parse_argument()
@@ -295,33 +295,40 @@ def main():
         exit(1)
 
     # 周辺減光強度範囲チェック
-    vinette_strength = args.vinette_strength
-    if vinette_strength > 1.0 or vinette_strength < 0.0:
-        print(f"Error: Out of bound for vinette-strength: {vinette_strength}")
+    vignette_strength = args.vignette_strength
+    if vignette_strength > 1.0 or vignette_strength < 0.0:
+        print(f"Error: Out of bound for vinette-strength: {vignette_strength}")
         exit(1)
 
-    # 周辺減光処理
-    if(vinette_strength > 0):
-        image = add_vignette_effect(image, vinette_strength)
-
-
-    # 光漏れ強度設定
+    # 光漏れ強度設定(前処理)
     leak_intensity = args.leak_intensity
     if leak_intensity == "auto":
         leak_intensity = estimate_leak_intensity(image)
     # 光漏れ強度範囲チェック
-    if leak_intensity > 1.0 or leak_intensity < 0.0:
-        print(f"Error: Out of bound for leak-intensity: {leak_intensity}")
-        exit(1)
+    else:
+        try:
+            leak_intensity = float(leak_intensity)
+        except ValueError as e:
+            print(f"Error: Invalid value for leak-intensity: {leak_intensity}")
+            exit(1)
+        if leak_intensity > 1.0 or leak_intensity < 0.0:
+            print(f"Error: Out of bound for leak-intensity: {leak_intensity}")
+            exit(1)
 
-    # 光漏れ処理
+
+
+    # 周辺減光処理(実処理)
+    if vignette_strength > 0:
+        image = add_vignette_effect(image, vignette_strength)
+
+    # 光漏れ処理(実処理)
     style = args.leak_style
-    if const_leak_style[style] == "auto":
+    if CONST_LEAK_STYLE[style] == "auto":
         leak_color = estimate_leak_light_color(image)
-    elif const_leak_style[style] is None:
+    elif CONST_LEAK_STYLE[style] is None:
         leak_color = None  # 光漏れスキップ
     else:
-        leak_color = const_leak_style[style]
+        leak_color = CONST_LEAK_STYLE[style]
 
     # instax mini風の枠画像を生成
     instax_image = create_instax_frame(image, scale=10)
@@ -338,7 +345,7 @@ def main():
         )
 
     # 外枠を追加
-    if (args.border_size > 0):
+    if args.border_size > 0:
         final_image = add_outer_border(final_image, args.border_size)
 
     # 出力画像として指定されたファイルパスに保存
