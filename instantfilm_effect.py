@@ -1,6 +1,7 @@
 import argparse
 from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFilter, ImageChops
 
+verbose_output = False
 
 def create_instax_frame(input_path, scale=10):
     """
@@ -26,7 +27,7 @@ def create_instax_frame(input_path, scale=10):
     # --- 画像の読み込み ---
     image = Image.open(input_path)
     img_width, img_height = image.size
-    print(f"元画像サイズ: {img_width}x{img_height} ピクセル")
+    if verbose_output: print(f"元画像サイズ: {img_width}x{img_height} ピクセル")
 
     # --- 画像の中央クロップ ---
     # 目標のアスペクト比
@@ -78,7 +79,7 @@ def add_light_leak_effect(
     :return: 光漏れ効果を適用したImageオブジェクト
     """
     width, height = image.size
-    print(f"枠画像サイズ: {width}x{height} ピクセル")
+    if verbose_output: print(f"枠画像サイズ: {width}x{height} ピクセル")
 
     # --- 光漏れ用のレイヤー作成 ---
     # 元サイズと同じ黒背景のキャンバス
@@ -87,6 +88,7 @@ def add_light_leak_effect(
 
     # --- 光漏れの位置と形状の決定 ---
     # ここでは楕円形で光漏れ効果を再現
+    if verbose_output: print(f"光漏れ位置: {leak_position}")
     if leak_position == "upper_right":
         ellipse_box = [int(width * 0.6), 0, width, int(height * 0.5)]
     elif leak_position == "upper_left":
@@ -121,13 +123,20 @@ def main():
     """
     # 引数のパース設定
     parser = argparse.ArgumentParser(
-        description="instax mini風画像＋光漏れ効果を適用するプログラム"
+        description="instax mini風画像＋光漏れ効果を適用するスクリプト"
     )
     parser.add_argument("input_file", help="入力画像のファイルパス（例: input.jpg）")
-    parser.add_argument(
-        "output_file", help="出力画像のファイルパス（例: output.jpg）"
-    )
+    parser.add_argument("output_file", help="出力画像のファイルパス（例: output.jpg）")
+    parser.add_argument('--leak-position', '--lp',
+                    choices=['upper_left', 'upper_right', 'bottom_left', 'bottom_right'],
+                    default='upper_right',
+                    help='光漏れの位置を指定します。デフォルトは upper_right です。')
+    parser.add_argument('--verbose', '-v', action="store_true", help="処理状況を表示します")
+
     args = parser.parse_args()
+
+    # 冗長出力設定をグローバル変数に格納
+    verbose_output = args.verbose
 
     # instax mini風の枠画像を生成
     instax_image = create_instax_frame(args.input_file, scale=10)
@@ -137,14 +146,12 @@ def main():
         instax_image,
         leak_color=(255, 200, 0),  # 温かいオレンジ色
         intensity=0.5,  # 効果の強さ（0.0～1.0）
-        leak_position="upper_right",  # 光漏れの位置（お好みで変更可）
+        leak_position=args.leak_position,  # 光漏れの位置（引数で指定）
     )
 
     # 出力画像として指定されたファイルパスに保存
     final_image.save(args.output_file)
-    print(
-        f"画像を保存しました: {args.output_file}"
-    )
+    if verbose_output: print(f"画像を保存しました: {args.output_file}")
 
 
 if __name__ == "__main__":
