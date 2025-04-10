@@ -3,7 +3,6 @@ from PIL import Image, ImageOps, ImageEnhance, ImageDraw, ImageFilter, ImageChop
 import numpy as np
 
 
-
 def create_instax_frame(image, scale=10):
     """
     入力画像の中央部を「横46mm×縦62mm」のアスペクト比でクロップし、
@@ -66,14 +65,16 @@ def create_instax_frame(image, scale=10):
 
     return framed_image
 
+
 def estimate_leak_intensity(image):
     """
     入力画像の全体の明るさに基づいて、光漏れ強度（intensity）を自動設定します。
-    
+
     :param image: PIL.Image オブジェクト
     :return: 推定された強度（float, 0.0〜1.0）
     """
-    if verbose_output: print("画像の平均輝度から光漏れ強度を推定します")
+    if verbose_output:
+        print("画像の平均輝度から光漏れ強度を推定します")
 
     image = image.convert("RGB")
     np_image = np.array(image)
@@ -87,14 +88,18 @@ def estimate_leak_intensity(image):
 
     # 明るさに応じて intensity を調整（必要ならカスタム可能）
     if avg_brightness < 100:
-        if verbose_output: print("判定：暗い")
+        if verbose_output:
+            print("判定：暗い")
         return 0.6  # 暗い
     elif avg_brightness < 180:
-        if verbose_output: print("判定：中間")
+        if verbose_output:
+            print("判定：中間")
         return 0.5  # 中間
     else:
-        if verbose_output: print("判定：明るい")
+        if verbose_output:
+            print("判定：明るい")
         return 0.3  # 明るい
+
 
 def estimate_light_color(image, brightness_threshold=200):
     """
@@ -104,7 +109,8 @@ def estimate_light_color(image, brightness_threshold=200):
     :param brightness_threshold: 明るさの閾値（RGBの平均値）
     :return: 推定された光漏れカラー (R, G, B)
     """
-    if verbose_output: print(f"光源色の推定を行います")
+    if verbose_output:
+        print(f"光源色の推定を行います")
     image = image.convert("RGB")
     np_image = np.array(image)
 
@@ -121,9 +127,9 @@ def estimate_light_color(image, brightness_threshold=200):
 
     # 明るいピクセルの平均色を計算
     avg_color = np.mean(bright_pixels, axis=0).astype(int)
-    if verbose_output: print(f"光源色推定: {avg_color}")
+    if verbose_output:
+        print(f"光源色推定: {avg_color}")
     return tuple(avg_color)
-
 
 
 def add_light_leak_effect(
@@ -139,7 +145,8 @@ def add_light_leak_effect(
     :return: 光漏れ効果を適用したImageオブジェクト
     """
     width, height = image.size
-    if verbose_output: print(f"枠画像サイズ: {width}x{height} ピクセル")
+    if verbose_output:
+        print(f"枠画像サイズ: {width}x{height} ピクセル")
 
     # --- 光漏れ用のレイヤー作成 ---
     # 元サイズと同じ黒背景のキャンバス
@@ -176,10 +183,11 @@ def add_light_leak_effect(
 
     return result
 
-def add_outer_border(image, border_size=1, color=(68, 68, 68)):
-    if verbose_output: print(f"外枠をつけます: Color {color} {border_size}px")
-    return ImageOps.expand(image, border=border_size, fill=color)
 
+def add_outer_border(image, border_size=1, color=(68, 68, 68)):
+    if verbose_output:
+        print(f"外枠をつけます: Color {color} {border_size}px")
+    return ImageOps.expand(image, border=border_size, fill=color)
 
 
 def parse_argument():
@@ -189,10 +197,13 @@ def parse_argument():
     )
     parser.add_argument("input_file", help="入力画像のファイルパス")
     parser.add_argument("output_file", help="出力画像のファイルパス")
-    parser.add_argument("--leak-style", "--ls",
+    parser.add_argument(
+        "--leak-style",
+        "--ls",
         choices=const_leak_style.keys(),
         default="warm",
-        help="光漏れの色味プリセットを選択します。デフォルトは warm です。")
+        help="光漏れの色味プリセットを選択します。デフォルトは warm です。",
+    )
     parser.add_argument(
         "--leak-position",
         "--lp",
@@ -204,14 +215,19 @@ def parse_argument():
         "--leak-intensity",
         "--li",
         default=0.5,
-        help="光漏れの強度を指定します。範囲は 0.0 から 1.0 もしくは auto で、デフォルトは 0.5 です。"
+        help="光漏れの強度を指定します。範囲は 0.0 から 1.0 もしくは auto で、デフォルトは 0.5 です。",
+    )
+    parser.add_argument(
+        "--border-size",
+        "--bs",
+        type=int,
+        default=0,
+        help="枠線の太さを指定します。デフォルトは 0 (枠線なし)です。",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="処理状況を表示します"
     )
     return parser.parse_args()
-    
-
 
 
 def main():
@@ -221,7 +237,7 @@ def main():
     """
     global verbose_output
     global const_leak_style
-    
+
     # 光漏れのスタイル定義
     const_leak_style = {
         "warm": (255, 180, 100),
@@ -231,14 +247,12 @@ def main():
         "none": None,
         "auto": "auto",
     }
-    
+
     # 引数のパース
     args = parse_argument()
 
     # 冗長出力設定をグローバル変数に格納
     verbose_output = args.verbose
-
-
 
     # --- 画像の読み込み ---
     try:
@@ -252,12 +266,13 @@ def main():
 
     # 光漏れ強度設定
     leak_intensity = args.leak_intensity
-    if leak_intensity == "auto": leak_intensity = estimate_leak_intensity(image)
+    if leak_intensity == "auto":
+        leak_intensity = estimate_leak_intensity(image)
     # 光漏れ強度範囲チェック
-    if (leak_intensity > 1.0 or leak_intensity < 0.0):
+    if leak_intensity > 1.0 or leak_intensity < 0.0:
         print(f"Error: Out of bound for leak-intensity: {leak_intensity}")
         exit(1)
-        
+
     # 光漏れ処理
     style = args.leak_style
     if const_leak_style[style] == "auto":
@@ -269,8 +284,6 @@ def main():
 
     # instax mini風の枠画像を生成
     instax_image = create_instax_frame(image, scale=10)
-
-
 
     # 光漏れ効果を追加
     if leak_color is None or args.leak_position == "none":
@@ -284,13 +297,14 @@ def main():
         )
 
     # 外枠を追加
-    final_image = add_outer_border(final_image)
-
+    if (args.border_size > 0):
+        final_image = add_outer_border(final_image, args.border_size)
 
     # 出力画像として指定されたファイルパスに保存
     try:
         final_image.save(args.output_file)
-        if verbose_output: print(f"画像を保存しました: {args.output_file}")
+        if verbose_output:
+            print(f"画像を保存しました: {args.output_file}")
     except Exception as e:
         print(f"Error: 画像の出力に失敗しました: {e}")
         exit(1)
