@@ -139,8 +139,7 @@ def add_light_leak_effect(
     :return: 光漏れ効果を適用したImageオブジェクト
     """
     width, height = image.size
-    if verbose_output:
-        print(f"枠画像サイズ: {width}x{height} ピクセル")
+    if verbose_output: print(f"枠画像サイズ: {width}x{height} ピクセル")
 
     # --- 光漏れ用のレイヤー作成 ---
     # 元サイズと同じ黒背景のキャンバス
@@ -176,6 +175,12 @@ def add_light_leak_effect(
     result = Image.blend(image, combined, intensity)
 
     return result
+
+def add_outer_border(image, border_size=1, color=(68, 68, 68)):
+    if verbose_output: print(f"外枠をつけます: Color {color} {border_size}px")
+    return ImageOps.expand(image, border=border_size, fill=color)
+
+
 
 def parse_argument():
     # 引数のパース設定
@@ -265,6 +270,8 @@ def main():
     # instax mini風の枠画像を生成
     instax_image = create_instax_frame(image, scale=10)
 
+
+
     # 光漏れ効果を追加
     if leak_color is None or args.leak_position == "none":
         final_image = instax_image
@@ -275,6 +282,10 @@ def main():
             intensity=leak_intensity,  # 効果の強さ（0.0～1.0）
             leak_position=args.leak_position,  # 光漏れの位置（引数で指定）
         )
+
+    # 外枠を追加
+    final_image = add_outer_border(final_image)
+
 
     # 出力画像として指定されたファイルパスに保存
     try:
