@@ -277,8 +277,12 @@ def main():
         )
 
     # 出力画像として指定されたファイルパスに保存
-    final_image.save(args.output_file)
-    if verbose_output: print(f"画像を保存しました: {args.output_file}")
+    try:
+        final_image.save(args.output_file)
+        if verbose_output: print(f"画像を保存しました: {args.output_file}")
+    except Exception as e:
+        print(f"Error: 画像の出力に失敗しました: {e}")
+        exit(1)
 
 
 if __name__ == "__main__":
