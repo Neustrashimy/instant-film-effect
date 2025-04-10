@@ -30,3 +30,12 @@ options:
   --verbose, -v         処理状況を表示します
 
 ```
+
+
+## Before / After サンプル
+
+| 元画像 (Before) | 加工後画像 (After) |
+|------------------|---------------------|
+| ![Before](example/sample03_before.jpg) | ![After](example/sample03_after.jpg) |
+
+`--leak-style` `--leak-intensity` は `auto`、`--leak-position` は `upper_right` です。
