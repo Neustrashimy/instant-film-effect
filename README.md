@@ -8,10 +8,10 @@ python instantfilm_effect.py [input file] [output file]
 ```
 
 ```:help
->python instantfilm_effect.py --help                                                                   
+>python instantfilm_effect.py --help
 usage: instantfilm_effect.py [-h] [--leak-style {warm,cool,pink,burn,none,auto}]
                              [--leak-position {upper_left,upper_right,bottom_left,bottom_right,none}] [--leak-intensity LEAK_INTENSITY]
-                             [--border-size BORDER_SIZE] [--verbose]
+                             [--vinette-strength VINETTE_STRENGTH] [--border-size BORDER_SIZE] [--verbose]
                              input_file output_file
 
 instax mini風画像＋光漏れ効果を適用するスクリプト
@@ -28,6 +28,8 @@ options:
                         光漏れの位置を指定します。デフォルトは upper_right です。
   --leak-intensity LEAK_INTENSITY, --li LEAK_INTENSITY
                         光漏れの強度を指定します。範囲は 0.0 から 1.0 もしくは auto で、デフォルトは 0.5 です。
+  --vinette-strength VINETTE_STRENGTH, --vs VINETTE_STRENGTH
+                        ヴィネット(周辺減光)の強度を指定します。範囲は 0.0 から 1.0 で、デフォルトは 0 (適用しない)です。
   --border-size BORDER_SIZE, --bs BORDER_SIZE
                         枠線の太さを指定します。デフォルトは 0 (枠線なし)です。
   --verbose, -v         処理状況を表示します
@@ -41,9 +43,10 @@ options:
 |------------------|---------------------|
 | ![Before](example/sample03_before.jpg) | ![After](example/sample03_after.jpg) |
 
-| 加工パラメータ     | 設定値        |
-|-------------------|---------------|
-| `--border-size`   | `3`           |
-| `--leak-style`    | `auto`        |
-| `--leak-intensity`| `auto`        |
-| `--leak-position` | `upper_right` |
+| 加工パラメータ        | 設定値        |
+|----------------------|---------------|
+| `--border-size`      | `3`           |
+| `--leak-style`       | `auto`        |
+| `--leak-intensity`   | `auto`        |
+| `--leak-position`    | `upper_right` |
+| `--vinette-strength` | `0.3`         |

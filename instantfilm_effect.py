@@ -27,7 +27,7 @@ def create_instax_frame(image, scale=10):
     # --- 画像の縦横比取得 ---
     img_width, img_height = image.size
     if verbose_output:
-        print(f"元画像サイズ: {img_width}x{img_height} ピクセル")
+        print(f"create_instax_frame: 元画像サイズ: {img_width}x{img_height}px")
 
     # --- 画像の中央クロップ ---
     # 目標のアスペクト比
@@ -48,6 +48,8 @@ def create_instax_frame(image, scale=10):
     top = (img_height - new_height) // 2
     right = left + new_width
     bottom = top + new_height
+    if verbose_output:
+        print(f"create_instax_frame: クロップ: {(left, top, right, bottom)}")
 
     cropped_img = image.crop((left, top, right, bottom))
 
@@ -73,9 +75,6 @@ def estimate_leak_intensity(image):
     :param image: PIL.Image オブジェクト
     :return: 推定された強度（float, 0.0〜1.0）
     """
-    if verbose_output:
-        print("画像の平均輝度から光漏れ強度を推定します")
-
     image = image.convert("RGB")
     np_image = np.array(image)
 
@@ -84,24 +83,23 @@ def estimate_leak_intensity(image):
     avg_brightness = np.mean(brightness)
 
     if verbose_output:
-        print(f"画像の平均輝度: {avg_brightness:.2f}")
+        print(f"estimate_leak_intensity: 画像の平均輝度: {avg_brightness:.2f}")
 
     # 明るさに応じて intensity を調整（必要ならカスタム可能）
     if avg_brightness < 100:
         if verbose_output:
-            print("判定：暗い")
+            print("estimate_leak_intensity: 判定：暗い")
         return 0.6  # 暗い
     elif avg_brightness < 180:
         if verbose_output:
-            print("判定：中間")
+            print("estimate_leak_intensity: 判定：中間")
         return 0.5  # 中間
     else:
         if verbose_output:
-            print("判定：明るい")
+            print("estimate_leak_intensity: 判定：明るい")
         return 0.3  # 明るい
 
-
-def estimate_light_color(image, brightness_threshold=200):
+def estimate_leak_light_color(image, brightness_threshold=200):
     """
     入力画像の明るいピクセルから平均色（光漏れに使えそうな色）を推定します。
 
@@ -109,8 +107,6 @@ def estimate_light_color(image, brightness_threshold=200):
     :param brightness_threshold: 明るさの閾値（RGBの平均値）
     :return: 推定された光漏れカラー (R, G, B)
     """
-    if verbose_output:
-        print(f"光源色の推定を行います")
     image = image.convert("RGB")
     np_image = np.array(image)
 
@@ -128,9 +124,8 @@ def estimate_light_color(image, brightness_threshold=200):
     # 明るいピクセルの平均色を計算
     avg_color = np.mean(bright_pixels, axis=0).astype(int)
     if verbose_output:
-        print(f"光源色推定: {avg_color}")
+        print(f"estimate_leak_light_color: 光源色推定: {avg_color}")
     return tuple(avg_color)
-
 
 def add_light_leak_effect(
     image, leak_color=(255, 200, 0), intensity=0.5, leak_position="upper_right"
@@ -146,7 +141,7 @@ def add_light_leak_effect(
     """
     width, height = image.size
     if verbose_output:
-        print(f"枠画像サイズ: {width}x{height} ピクセル")
+        print(f"add_light_leak_effect: 光漏れを追加します。強度: {intensity}, 位置: {leak_position}, 色: {leak_color}")
 
     # --- 光漏れ用のレイヤー作成 ---
     # 元サイズと同じ黒背景のキャンバス
@@ -155,8 +150,6 @@ def add_light_leak_effect(
 
     # --- 光漏れの位置と形状の決定 ---
     # ここでは楕円形で光漏れ効果を再現
-    if verbose_output:
-        print(f"光漏れ位置: {leak_position}")
     if leak_position == "upper_right":
         ellipse_box = [int(width * 0.6), 0, width, int(height * 0.5)]
     elif leak_position == "upper_left":
@@ -184,9 +177,40 @@ def add_light_leak_effect(
     return result
 
 
-def add_outer_border(image, border_size=1, color=(68, 68, 68)):
+def add_vignette_effect(image, strength=0.3):
+    """
+    周辺減光（ヴィネット）を適用する関数。
+    :param image: PIL.Image
+    :param strength: 0.0〜1.0で減光の強さを指定（例: 0.3）
+    :return: 減光処理を加えたImage
+    """
+
     if verbose_output:
-        print(f"外枠をつけます: Color {color} {border_size}px")
+        print(f"add_vignette_effect: 周辺減光の追加を行います。強度：{strength}")
+
+    image = image.convert("RGB")
+    width, height = image.size
+    center_x, center_y = width / 2, height / 2
+    max_distance = (center_x**2 + center_y**2) ** 0.5
+
+    np_image = np.array(image).astype(np.float32)
+
+    # 距離に応じて暗くするマスクを生成
+    for y in range(height):
+        for x in range(width):
+            dx = x - center_x
+            dy = y - center_y
+            distance = (dx**2 + dy**2) ** 0.5
+            darken_factor = 1 - strength * (distance / max_distance)
+            np_image[y, x] *= darken_factor
+
+    np_image = np.clip(np_image, 0, 255).astype(np.uint8)
+    return Image.fromarray(np_image)
+
+
+def add_outer_border(image, border_size=1, color=(192,192,192)):
+    if verbose_output:
+        print(f"add_outer_border: 外枠をつけます: Color {color} {border_size}px")
     return ImageOps.expand(image, border=border_size, fill=color)
 
 
@@ -218,6 +242,13 @@ def parse_argument():
         help="光漏れの強度を指定します。範囲は 0.0 から 1.0 もしくは auto で、デフォルトは 0.5 です。",
     )
     parser.add_argument(
+        "--vinette-strength",
+        "--vs",
+        type=float,
+        default=0.0,
+        help="ヴィネット(周辺減光)の強度を指定します。範囲は 0.0 から 1.0 で、デフォルトは 0 (適用しない)です。",
+    )
+    parser.add_argument(
         "--border-size",
         "--bs",
         type=int,
@@ -228,7 +259,6 @@ def parse_argument():
         "--verbose", "-v", action="store_true", help="処理状況を表示します"
     )
     return parser.parse_args()
-
 
 def main():
     """
@@ -264,6 +294,17 @@ def main():
         print(f"Error: 入力画像の読み込みに失敗しました: {e}")
         exit(1)
 
+    # 周辺減光強度範囲チェック
+    vinette_strength = args.vinette_strength
+    if vinette_strength > 1.0 or vinette_strength < 0.0:
+        print(f"Error: Out of bound for vinette-strength: {vinette_strength}")
+        exit(1)
+
+    # 周辺減光処理
+    if(vinette_strength > 0):
+        image = add_vignette_effect(image, vinette_strength)
+
+
     # 光漏れ強度設定
     leak_intensity = args.leak_intensity
     if leak_intensity == "auto":
@@ -276,7 +317,7 @@ def main():
     # 光漏れ処理
     style = args.leak_style
     if const_leak_style[style] == "auto":
-        leak_color = estimate_light_color(image)
+        leak_color = estimate_leak_light_color(image)
     elif const_leak_style[style] is None:
         leak_color = None  # 光漏れスキップ
     else:
